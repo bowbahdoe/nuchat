@@ -17,9 +17,10 @@ Number = t.Union[int, float]
 # -------------------------------------------- #
 JSON = t.Union[str,
                Number,
-               t.List[t.Union[str, int, float]],
-               t.Dict[str, t.Union[str, int, float]],
-               None]
+               bool,
+               None,
+               t.List[t.Union[str, Number]],
+               t.Dict[str, t.Union[str, Number]]]
 
 def authenticated_only(f):
     '''
@@ -79,9 +80,8 @@ def is_valid_user_message(msg: JSON) -> bool:
 
 @socketio.on('connect')
 def handle_connect(*msg):
-    if (current_user.is_authenticated and
-       current_user.email not in ONLINE_USERS):
-            ONLINE_USERS.add(current_user.email)
+    if current_user.is_authenticated:
+        ONLINE_USERS.add(current_user.email)
 
 @socketio.on('disconnect')
 def handle_disconnect(*msg):

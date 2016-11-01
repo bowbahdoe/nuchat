@@ -21,6 +21,8 @@ def test_user_message_check():
     # Technically valid JSON, but make no sense in context                        
     assert not v.is_valid_user_message('hi')
     assert not v.is_valid_user_message(None)
+    assert not v.is_valid_user_message(False)
+    assert not v.is_valid_user_message(True)
     assert not v.is_valid_user_message(3)
     
     # Dictionary without the correct values
