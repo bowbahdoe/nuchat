@@ -2,9 +2,11 @@ import warnings
 import flask
 from flask import Flask, session, send_from_directory 
 from flask_security import Security, MongoEngineUserDatastore
+import flask_security.forms as fsf
 from flask_security.decorators import login_required
 from flask_login import current_user
 from flask_socketio import SocketIO
+from flask_cors import CORS
 from flask.exthook import ExtDeprecationWarning
 with warnings.catch_warnings():
     warnings.simplefilter('ignore', ExtDeprecationWarning)
@@ -20,6 +22,7 @@ with warnings.catch_warnings():
 app = Flask(__name__)
 
 
+
 ############################################################
 # Load in configuration instead of defining explicitly     #
 # within this file. consult the file if a change is needed #
@@ -33,7 +36,7 @@ app.config.from_pyfile('config.py')
 ###############################################################
 db = MongoEngine(app)
 
-
+CORS(app)
 ###############################################################
 # sets up the Flask-Security Instance using the User and Role #
 # models defined in mrmccue.models                            #
@@ -41,10 +44,13 @@ db = MongoEngine(app)
 
 from nuchat.models import User, Role
 
-
+class ExtendedRegisterForm(fsf.RegisterForm):
+    first_name = fsf.StringField('First Name', [fsf.Required()])
+    last_name = fsf.StringField('Last Name', [fsf.Required()])
+    username = fsf.StringField('Username', [fsf.Required()])
 
 user_datastore = MongoEngineUserDatastore(db, User, Role)
-security = Security(app, user_datastore)
+security = Security(app, user_datastore,register_form=ExtendedRegisterForm)
 
 socketio = SocketIO(app)
 

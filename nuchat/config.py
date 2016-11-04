@@ -3,8 +3,8 @@
 DEBUG = True
 
 # Used for WTForms
-WTF_CSRF_ENABLED = True
-SECRET_KEY = 'you-will-never-guess'
+WTF_CSRF_ENABLED = False
+SECRET_KEY = 'eshwre98fhw98r4'
 
 
 
@@ -25,3 +25,5 @@ SECURITY_URL_PREFIX   = '/security'
 SECURITY_PASSWORD_HASH = 'sha512_crypt'
 SECURITY_TOKEN_MAX_AGE	= 3601
 SECURITY_PASSWORD_SALT = "ASFJsefnsejfsefnjcEfnhi4rw3rt43t"
+
+SECURITY_USER_IDENTITY_ATTRIBUTES = ('username','email')

@@ -1,12 +1,16 @@
 import functools
 import flask
 import typing as t
+import mongoengine as mongo
+import flask_wtf as wtf
+import nuchat.models as m
+from nuchat.friends import are_friends, process_friend_request,\
+                           get_friends, does_user_exist
 from nuchat import socketio
 from nuchat import app
 from flask_socketio import emit, disconnect
-from flask_login import current_user
+from flask_login import current_user, login_required
 from flask import jsonify
-from nuchat import models
 
 ONLINE_USERS = set()
 
@@ -39,17 +43,17 @@ def authenticated_only(f):
 def handle_message(msg: JSON) -> None:
     '''
     msg is a JSON which has the following properties
-    {'sender_username': ...,
-     'recipients': [str]
+    {'sender_username': str,
+     'recipients': [str...]
      'content_type': ['text' or 'image_url']
-     'content': ...}
+     'content': str}
     '''
     if not is_valid_user_message(msg):
         return
 
     if current_user.is_authenticated:
         emit('server message',
-             '%s: %s' % (current_user.email, msg['content']),
+             '%s: %s' % (current_user.username, msg['content']),
              broadcast=True)
     else:
         emit('server message','Annonymous: %s' % msg['content'], broadcast=True)
@@ -81,15 +85,15 @@ def is_valid_user_message(msg: JSON) -> bool:
 @socketio.on('connect')
 def handle_connect(*msg):
     if current_user.is_authenticated:
-        ONLINE_USERS.add(current_user.email)
+        ONLINE_USERS.add(current_user.username)
 
 @socketio.on('disconnect')
 def handle_disconnect(*msg):
     if current_user.is_authenticated:
-        ONLINE_USERS.discard(current_user.email)
+        ONLINE_USERS.discard(current_user.username)
 
 
-@app.route('/get_online_users')
+@app.route('/get_online_users', methods=['GET'])
 def get_online_users() -> flask.wrappers.Response:
     '''
     returns as JSON to an authenticated user the list of their
@@ -99,17 +103,65 @@ def get_online_users() -> flask.wrappers.Response:
     list as JSON
     '''
     if current_user.is_authenticated:
-        are_we_friends = functools.partial(are_friends, current_user.email)
+        are_we_friends = functools.partial(are_friends, current_user.username)
         return jsonify(list(filter(are_we_friends, ONLINE_USERS)))
     else:
         return jsonify([])
 
-def are_friends(user_1: str, user_2: str) -> bool:
+@app.route('/is_logged_in', methods=['GET'])
+def is_logged_in() -> flask.wrappers.Response:
     '''
-    STUB. returns whether two users are friends
+    returns whether the user requesting has login credentials
+    
+    useful for when credentials expire
     '''
-    return True
+    return jsonify(current_user.is_authenticated)
 
+@app.route('/submit_friend_request/', methods=['POST'])
+@login_required
+def submit_friend_request():
+    '''
+    submits a friend request from one user to another
+    
+    if the other user sends the same request,
+    the request is formalized
+    '''
+    
+    if 'username' not in request.form:
+        return
+    
+    username = request.form['username']
+    
+    if username == current_user.username:
+        return
+
+    process_friend_request(sender=current_user.username,
+                           reciever=username)
+
+@app.route('/get_friends/', methods=['GET'])
+@app.route('/get_friends/<username>', methods=['GET'])
+@login_required
+def get_my_friends(username=None):
+    '''
+    If a user is provided, gets the friends of that user if
+    you are friends with that user.
+    
+    If no user provided, defaults to getting the friends
+    of the user who made the request
+    '''
+    if not username:
+        username = current_user.username
+    
+    if not does_user_exist(username) or \
+       not are_friends(username, current_user.username):
+        response = {'error': 'the requested user\'s friends are not available'}
+        
+        return jsonify(response), 404
+    else:
+        response = {'username': username,
+                    'friends': get_friends(username)}
+    
+        return jsonify(response)
 
 @app.route('/messages', methods=['GET'])
 @app.route('/messages/<int:n>', methods=['GET'])
