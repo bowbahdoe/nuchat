@@ -11,10 +11,10 @@ SECRET_KEY = 'eshwre98fhw98r4'
 # and mongoengine
 MONGODB_SETTINGS = {
     'db': 'nuchat',
-    'host': 'ds137197.mlab.com',
+    'host': 'dsXXXXXX.mlab.com',
     'port': 37197,
-    'username': 'bowbahdoe',
-    'password': 'pie1222'
+    'username': 'usename',
+    'password': 'password'
 }
 
 # Flask-Security config
