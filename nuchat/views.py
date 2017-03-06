@@ -4,16 +4,19 @@ import typing as t
 import mongoengine as mongo
 import flask_wtf as wtf
 import nuchat.models as m
+import nuchat.privilege as privilege
 from nuchat.friends import are_friends, process_friend_request,\
                            get_friends, does_user_exist
 from nuchat import socketio
 from nuchat import app
 from flask_socketio import emit, disconnect
+from flask_security.decorators import roles_required
+from flask_security import http_auth_required
 from flask_login import current_user, login_required
-from flask import jsonify
+from flask import jsonify, request
 
 ONLINE_USERS = set()
-
+USER_ROOMS = {}
 Number = t.Union[int, float]
 # -------------------------------------------- #
 # This JSON definition ignores nested objects, #
@@ -52,11 +55,12 @@ def handle_message(msg: JSON) -> None:
         return
 
     if current_user.is_authenticated:
-        emit('server message',
+        send('server message',
              '%s: %s' % (current_user.username, msg['content']),
              broadcast=True)
     else:
         emit('server message','Annonymous: %s' % msg['content'], broadcast=True)
+    
         
 def is_valid_user_message(msg: JSON) -> bool:
     '''
@@ -86,12 +90,12 @@ def is_valid_user_message(msg: JSON) -> bool:
 def handle_connect(*msg):
     if current_user.is_authenticated:
         ONLINE_USERS.add(current_user.username)
-
+        USER_ROOMS[current_user.username] = request.sid
 @socketio.on('disconnect')
 def handle_disconnect(*msg):
     if current_user.is_authenticated:
         ONLINE_USERS.discard(current_user.username)
-
+        print(USER_ROOMS)
 
 @app.route('/get_online_users', methods=['GET'])
 def get_online_users() -> flask.wrappers.Response:
@@ -141,7 +145,7 @@ def submit_friend_request():
 @app.route('/get_friends/', methods=['GET'])
 @app.route('/get_friends/<username>', methods=['GET'])
 @login_required
-def get_my_friends(username=None):
+def get_my_friends(username=None) -> flask.wrappers.Response:
     '''
     If a user is provided, gets the friends of that user if
     you are friends with that user.
@@ -155,16 +159,73 @@ def get_my_friends(username=None):
     if not does_user_exist(username) or \
        not are_friends(username, current_user.username):
         response = {'error': 'the requested user\'s friends are not available'}
-        
-        return jsonify(response), 404
+        code = 401
     else:
         response = {'username': username,
                     'friends': get_friends(username)}
+        code = 200
+
+    return jsonify(response), code
     
-        return jsonify(response)
+@app.route('/get_my_username/', methods=['GET'])
+def get_my_username():
+    '''
+    returns the requesting user's username
+    
+    if the user isnt logged in, returns a 404
+    '''
+    if current_user.is_authenticated:
+        response = {'username': current_user.username}
+        code = 200
+    else:
+        response = {'error': 'you must be logged in to request your username'}
+        code = 401
+    
+    return jsonify(response), code
+    
+@app.route('/get_my_name/', methods=['GET'])
+def get_my_name():
+    '''
+    returns all of the requesting user's general info
+    
+    if the user isnt logged in, returns a 404
+    '''
+    if current_user.is_authenticated:
+        response = {'first_name': current_user.first_name,
+                    'last_name': current_user.last_name}
+        code = 200
+    else:
+        response = {'error': 'you must be logged in to request your name'}
+        code = 401
+    
+    return jsonify(response), code
+    
+@app.route('/get_my_info/', methods=['GET'])
+def get_my_info():
+    '''
+    returns all of the requesting user's general info
+    
+    if the user isnt logged in, returns a 404
+    '''
+    if current_user.is_authenticated:
+        response = {'username': current_user.username,
+                    'friends': current_user.friends,
+                    'first_name': current_user.first_name,
+                    'last_name': current_user.last_name}
+        code = 200
+    else:
+        response = {'error': 'you must be logged in to request your info'}
+        code = 401
+    
+    return jsonify(response), code
 
 @app.route('/messages', methods=['GET'])
 @app.route('/messages/<int:n>', methods=['GET'])
 def fetch_messages(n=1):
     if current_user.is_authenticated:
         pass
+
+@app.route('/sean')
+@http_auth_required
+def sean():
+    return jsonify(current_user.is_authenticated)

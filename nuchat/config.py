@@ -6,7 +6,7 @@ DEBUG = True
 WTF_CSRF_ENABLED = False
 SECRET_KEY = 'eshwre98fhw98r4'
 
-
+ALLOW_CORS = True
 
 # and mongoengine
 MONGODB_SETTINGS = {

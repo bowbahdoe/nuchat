@@ -36,7 +36,8 @@ app.config.from_pyfile('config.py')
 ###############################################################
 db = MongoEngine(app)
 
-CORS(app)
+if app.config['ALLOW_CORS']:
+    CORS(app)
 ###############################################################
 # sets up the Flask-Security Instance using the User and Role #
 # models defined in mrmccue.models                            #
@@ -62,7 +63,4 @@ import nuchat.views
 def index():
     return send_from_directory('static','index.html')
     
-@app.route('/logged')
-@login_required
-def logged():
-    return '<h1> You are Logged in {0}</h1>' 
+    
